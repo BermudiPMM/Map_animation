@@ -1,0 +1,58 @@
+library(geobr)
+library(tidyverse)
+library(magick)
+
+
+## shape file
+state <- read_state(
+  year = 2020,
+  showProgress = FALSE
+)
+
+
+## fake dataset
+df <- data.frame(code_state = c(11, 12, 13, 14, 15, 16, 17, 21, 22, 23, 24, 25, 26, 27, 28, 29, 31, 32, 33, 35, 41, 42, 43, 50, 51, 52, 53),
+           season  = rep(c("Summer", "Autumn", "Winter", "Spring"), 27),
+           cod_season  = rep(1:4, 27),
+           year =  rep(c(2019, 2020), each = 27 * 4),
+           rate = sample(10:200, 
+                         size = 216, 
+                         replace = TRUE))
+
+
+for (first  in 2019:2020) {
+  for (second in 1:4) {
+    
+    map_data <- df %>%
+      filter(year == first , cod_season == second ) %>%
+      select(code_state,  rate) 
+    
+    map_shp <- left_join(state, map_data, by = "code_state")
+    
+    g <- ggplot() +
+      geom_sf(data = map_shp,
+              aes(fill = rate), 
+              colour = NA, size = 0)
+    
+    
+    png(paste0("map_", first, "_", second, ".png"), width = 600, height = 500, res = 50, bg = "transparent")
+
+    print(g +
+            scale_fill_distiller(palette = "Spectral",
+                                 #limits = c(1, 26), 
+                                 name = paste("Season:", second , "\nYear:", first, "\nrate", sep = " ")) +
+            theme(legend.key.size = unit(0.5, 'cm'),
+                  legend.title = element_text(size=12), 
+                  legend.text = element_text(size=12))) +
+      theme_classic()
+    
+    dev.off() 
+  }
+}
+
+
+list.files(path='.', pattern = '*.png', full.names = TRUE) %>% 
+  image_read() %>% 
+  image_join() %>% 
+  image_animate(fps=1) %>% # animates, can opt for number of loops
+  image_write("Map.gif")
